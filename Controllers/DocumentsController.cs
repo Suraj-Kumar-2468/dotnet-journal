@@ -36,6 +36,21 @@ public class DocumentsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = doc.Id }, doc);
     }
 
+    [HttpPut("{id}")]
+    public ActionResult<Document> Update(int id, UpdateDocumentRequest request)
+    {   
+        var doc = _docs.FindIndex(d => d.Id == id);
+        if (doc is -1) return NotFound();
+        _docs[doc] = new Document
+        {
+            Id =  _docs[doc].Id,
+            Title = request?.Title is null ? _docs[doc].Title : request?.Title, 
+            Content = request?.Content is null ? _docs[doc].Content : request?.Content,
+            CreatedAt = DateTime.UtcNow
+        };
+        return Ok(_docs[doc]);
+    } 
+
     [HttpDelete("{id}")]
     public IActionResult Delete(int id)
     {
