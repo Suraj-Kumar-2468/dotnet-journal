@@ -8,101 +8,84 @@ namespace DocAssistant.Api.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        private static List<Category> _catg = new();
+        private static List<Category> _categories = new();
         private static int _nextId = 1;
 
         [HttpGet]
-        public ActionResult<List<Category>> getall([FromQuery] string? search)
+        public ActionResult<List<Category>> GetAll([FromQuery] string? search)
         
         {
             if (!string.IsNullOrEmpty(search))
             {
-                return _catg.Where(item => item.Name.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+                return _categories.Where(item => item.Name.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
             }
-            return _catg;
+            return _categories;
         }
 
         [HttpGet("{id}")]
-        public ActionResult<Category> getbyid(int id)
+        public ActionResult<Category> GetById(int id)
         {
-            Category categ = _catg.FirstOrDefault(item => item.Id == id);
-            if (categ is null)
+            Category? category = _categories.FirstOrDefault(item => item.Id == id);
+            if (category is null)
             {
                 return NotFound();
             }
-            return categ;
+            return category;
         }
         [HttpPost]
-        public IActionResult createcategory(CreateCategoryRequest request)
+        public IActionResult CreateCategory(CreateCategoryRequest request)
         {
-            Category isExist = _catg.FirstOrDefault(item => string.Equals(item.Name, request.Name, StringComparison.OrdinalIgnoreCase));
+            Category? isExist = _categories.FirstOrDefault(item => string.Equals(item.Name, request.Name, StringComparison.OrdinalIgnoreCase));
             if(isExist is not null)
                 return Conflict();
             Category body = new Category(_nextId++, request.Name);
-            _catg.Add(body);
-            return CreatedAtAction(nameof(getbyid), new { id = body.Id }, body);
+            _categories.Add(body);
+            return CreatedAtAction(nameof(GetById), new { id = body.Id }, body);
         }
 
-        [HttpPost("createmultiple")]
-        public IActionResult createmultiplecategories(List<CreateCategoryRequest> requests)
+        [HttpPost("bulk")]
+        public IActionResult CreateMultipleCategories(List<CreateCategoryRequest> requests)
         {
             var createdCategories = new List<Category>();
             foreach (var request in requests)
             {
-                Category isExist = _catg.FirstOrDefault(item => string.Equals(item.Name, request.Name, StringComparison.OrdinalIgnoreCase));
+                Category? isExist = _categories.FirstOrDefault(item => string.Equals(item.Name, request.Name, StringComparison.OrdinalIgnoreCase));
                 if(isExist is not null)
                     return Conflict();
                 Category body = new Category(_nextId++, request.Name);
-                _catg.Add(body);
+                _categories.Add(body);
                 createdCategories.Add(body);
             }
             return Ok(createdCategories);
         }
 
         [HttpDelete("{id}")]
-        public IActionResult deletecatgory(int id)
+        public IActionResult DeleteCategory(int id)
         {
-            Category categ = _catg.FirstOrDefault(item => item.Id == id);
-            if(categ is null)
+            Category? category = _categories.FirstOrDefault(item => item.Id == id);
+            if(category is null)
             {
                 return NotFound();
             }
-            _catg.Remove(categ);
-            return Ok();
+            _categories.Remove(category);
+            return NoContent();
         }
 
         [HttpPut("{id}")]
-        public IActionResult updatecategory(int id, UpdateCategoryRequest request)
+        public IActionResult UpdateCategory(int id, UpdateCategoryRequest request)
         {
-            Category categ = _catg.FirstOrDefault(item => item.Id == id);
-            if(categ is null)
+            Category? category = _categories.FirstOrDefault(item => item.Id == id);
+            if(category is null)
                 return NotFound();
-            Category isExist = _catg.FirstOrDefault(item => string.Equals(item.Name, request.Name, StringComparison.OrdinalIgnoreCase) && item.Id != id);
-            if(isExist is not null)
+            Category? existing = _categories.FirstOrDefault(item => string.Equals(item.Name, request.Name, StringComparison.OrdinalIgnoreCase) && item.Id != id);
+            if(existing is not null)
                 return Conflict();
-            var updatedCategory = new Category(categ.Id, request.Name);
-            _catg[_catg.IndexOf(categ)] = updatedCategory;
-            categ = updatedCategory;
-            return Ok(categ);
+            var updatedCategory = new Category(category.Id, request.Name);
+           
+            _categories[_categories.IndexOf(category)] = updatedCategory;
+            category = updatedCategory;
+            return Ok(category);
         }
-
-        [HttpPatch("{id}")]
-        public IActionResult patchcategory(int id, UpdateCategoryRequest request)
-        {
-            Category categ = _catg.FirstOrDefault(item => item.Id == id);
-            if(categ is null)
-                return NotFound();
-            if(!string.IsNullOrEmpty(request.Name))
-            {
-                Category isExist = _catg.FirstOrDefault(item => string.Equals(item.Name, request.Name, StringComparison.OrdinalIgnoreCase) && item.Id != id);
-                if(isExist is not null)
-                    return Conflict();
-                categ = new Category(categ.Id, request.Name);
-                _catg[_catg.IndexOf(_catg.First(item => item.Id == id))] = categ;
-            }
-            return Ok(categ);
-        }
-
 
     }
 
