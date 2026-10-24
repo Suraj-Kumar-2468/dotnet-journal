@@ -1,9 +1,13 @@
+
+using System.ComponentModel.DataAnnotations;
 namespace DocAssistant.Api.Models;
 
-public record CreateDocumentRequest(string Title, string Content);
+public record CreateDocumentRequest(
+    [Required] [MaxLength(100)] string Title,
+    [Required] [MaxLength(1000)] string Content
+);
 
-public class UpdateDocumentRequest
-{
-    public string? Title { get; set; }
-    public string? Content { get; set; }
-}
+public record UpdateDocumentRequest(
+    [MinLength(1)] [MaxLength(100)] string? Title,
+    [MinLength(1)] [MaxLength(1000)] string? Content
+);
