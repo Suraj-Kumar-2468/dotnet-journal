@@ -1,5 +1,8 @@
+using DocAssistant.Api.Data;
 using DocAssistant.Api.Models;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace DocAssistant.Api.Controllers;
 
@@ -7,86 +10,86 @@ namespace DocAssistant.Api.Controllers;
 [Route("api/[controller]")]
 public class DocumentsController : ControllerBase
 {
-    private static readonly List<Document> _docs = new();
-    private static int _nextId = 1;
+    private readonly AppDbContext _context;
+
+    public DocumentsController(AppDbContext context)
+    {
+        _context = context;
+    }
 
     [HttpGet()]
-    public ActionResult<List<Document>> GetAll([FromQuery(Name = "search")] string? search)
+    public async Task<ActionResult<List<Document>>> GetAll([FromQuery(Name = "search")] string? search)
     {
-        var docs = _docs.AsQueryable();
+        var docs = _context.Documents.AsQueryable();
         if (!string.IsNullOrEmpty(search))
         {
-            docs = docs.Where(d => d.Title.Contains(search, StringComparison.OrdinalIgnoreCase) || d.Content.Contains(search, StringComparison.OrdinalIgnoreCase));
+            docs = docs.Where(d => EF.Functions.Like(d.Title, $"%{search.Trim()}%") || EF.Functions.Like(d.Content.Trim(), $"%{search.Trim()}%"));
         }
-        return docs.ToList();
+        return await docs.ToListAsync();
     }
 
     [HttpGet("{id}")]
-    public ActionResult<Document> GetById(int id)
+    public async Task<ActionResult<Document>> GetById(int id)
     {
-        var doc = _docs.FirstOrDefault(d => d.Id == id);
+        var doc = await _context.Documents.FirstOrDefaultAsync(d => d.Id == id);
         return doc is null ? NotFound() : doc;
     }
 
     [HttpPost("bulk")]
-    public ActionResult<List<Document>> CreateBulk(List<CreateDocumentRequest> request)
+    public async Task<ActionResult<List<Document>>> CreateBulk(List<CreateDocumentRequest> request)
     {
         var docs = new List<Document>();
         foreach (var item in request)
         {
             var doc = new Document
             {
-                Id = _nextId++,
                 Title = item.Title,
                 Content = item.Content,
                 CreatedAt = DateTime.UtcNow
             };
-            _docs.Add(doc);
             docs.Add(doc);
         }
+        _context.Documents.AddRange(docs);
+        await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetAll), new { search = string.Join(",", request.Select(r => r.Title)) }, docs);
     }
 
     [HttpPost]
-    public ActionResult<Document> Create(CreateDocumentRequest request)
+    public async Task<ActionResult<Document>> Create(CreateDocumentRequest request)
     {
         var doc = new Document
         {
-            Id = _nextId++,
             Title = request.Title,
             Content = request.Content,
             CreatedAt = DateTime.UtcNow
         };
-        _docs.Add(doc);
+        _context.Documents.Add(doc);
+        await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = doc.Id }, doc);
     }
 
     [HttpPatch("{id}")]
-    public ActionResult<Document> Update(int id, UpdateDocumentRequest request)
+    public async Task<ActionResult<Document>> Update(int id, UpdateDocumentRequest request)
     {   
         if (request.Title is null && request.Content is null)
             return BadRequest("Nothing to update");
 
-        var doc = _docs.FindIndex(d => d.Id == id);
-        if (doc is -1) return NotFound();
-        _docs[doc] = new Document
-        {
-            Id =  _docs[doc].Id,
-            Title = request?.Title is null ? _docs[doc].Title : request?.Title, 
-            Content = request?.Content is null ? _docs[doc].Content : request?.Content,
-            CreatedAt = _docs[doc].CreatedAt
-        };
-        return Ok(_docs[doc]);
+        var doc = await _context.Documents.FirstOrDefaultAsync(d => d.Id == id);
+        if (doc is null) return NotFound();
+        doc.Title = request?.Title is null ? doc.Title : request?.Title;
+        doc.Content = request?.Content is null ? doc.Content : request?.Content;
+        await _context.SaveChangesAsync();
+        return Ok(doc);
     } 
 
     [HttpDelete("{id}")]
-    public IActionResult Delete(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        var doc = _docs.FirstOrDefault(d => d.Id == id);
+        var doc = await _context.Documents.FirstOrDefaultAsync(d => d.Id == id);
         if (doc is null) return NotFound();
-        _docs.Remove(doc);
+        _context.Documents.Remove(doc);
+        await _context.SaveChangesAsync(); 
         return NoContent();
     }
-
 
 }
